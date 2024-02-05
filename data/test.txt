@@ -1,0 +1,6 @@
+  create mode 100644 jdk/test/security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java
+  delete mode 100644 jdk/test/security/infra/java/security/cert/CertPathValidator/certification/ComodoCA.java
+  rename jdk/test/security/infra/java/security/cert/CertPathValidator/certification/{CertignaRoots.java => CertignaCA.java} (73%)
+  rename install/src/macosx/au/Sparkle/{ => Autoupdate}/SUInstaller.m (51%)
+  rename jdk/test/{closed => }/java/awt/datatransfer/CRLFTest/CRLFTest.java (53%)
+  rename test.txt => test_wow.txt (100%)
