@@ -5,6 +5,26 @@ use std::fs::File;
 use std::path::Path;
 use std::io::Write;
 
+use lscolors::{LsColors, Style};
+
+#[cfg(all(
+    not(feature = "nu-ansi-term"),
+))]
+compile_error!(
+    "feature must be enabled: nu-ansi-term"
+);
+
+fn print_lscolor_path(handle: &mut dyn Write, ls_colors: &LsColors, path: &str) -> io::Result<()> {
+    for (component, style) in ls_colors.style_for_path_components(Path::new(path)) {
+        #[cfg(any(feature = "nu-ansi-term", feature = "gnu_legacy"))]
+        {
+            let ansi_style = style.map(Style::to_nu_ansi_term_style).unwrap_or_default();
+            write!(handle, "{}", ansi_style.paint(component.to_string_lossy()))?;
+        }
+    }
+    Ok(())
+}
+
 /*
  Example output of git diff --format= --summary HASH
   create mode 100644 jdk/test/security/infra/java/security/cert/CertPathValidator/certification/CAInterop.java
@@ -33,6 +53,9 @@ const SQUARE: &str = "▪";
 const CIRCLE: &str = "●";
 
 fn main() {
+    let ls_colors = LsColors::from_env().unwrap_or_default();
+    let mut stdout = io::stdout();
+
     let summary_in;
     let summary_out;
 
@@ -87,7 +110,7 @@ fn main() {
                 let mut percent = "";
                 let p1 = ln.rfind(" (");
                 let p2 = ln.rfind(")");
-                if let (Some(pstart), Some(pend)) = (p1, p2) { 
+                if let (Some(pstart), Some(pend)) = (p1, p2) {
                     if pend > pstart {
                         percent = &ln[pstart+2..pend];
                         // println!("percent={}", percent);
@@ -101,7 +124,7 @@ fn main() {
                 let lb = ln.find("{");
                 let rb = ln.find("}");
                 let sp = ln.find(" => ");
-                if let (Some(lbracket), Some(rbracket), Some(split)) = (lb, rb, sp) { 
+                if let (Some(lbracket), Some(rbracket), Some(split)) = (lb, rb, sp) {
                     let prefix = &ln[..lbracket];
                     let from = &ln[lbracket+1..split];
                     let to = &ln[split+4..rbracket];
@@ -155,15 +178,32 @@ fn main() {
             let ln = line.trim();
 
             if let Some(_) = create_map.get(ln) {
-                println!("\x1b[32m{}\x1b[0m {}", CIRCLE, ln); // Green for create
+                // Green for create
+                write!(stdout, "\x1b[32m{}\x1b[0m ", CIRCLE).unwrap();
+                print_lscolor_path(&mut stdout, &ls_colors, &ln).unwrap();
+                writeln!(stdout).unwrap();
             } else if let Some(_) = delete_map.get(ln) {
-                println!("\x1b[31m{}\x1b[0m {}", CIRCLE, ln); // Red for create
+                // Red for removal
+                write!(stdout, "\x1b[31m{}\x1b[0m ", CIRCLE).unwrap();
+                print_lscolor_path(&mut stdout, &ls_colors, &ln).unwrap();
+                writeln!(stdout).unwrap();
             } else if let (Some(_), Some(percent)) = (to_map.get(ln), percent_map.get(ln)) {
-                println!("\x1b[31m{}\x1b[0m {}\t\t\x1b[33m({})\x1b[0m", LARROW, ln, percent); // Red for renamed delete. yellow for percent
+                // Red for renamed delete. yellow for percent
+                write!(stdout, "\x1b[31m{}\x1b[0m ", LARROW).unwrap();
+                print_lscolor_path(&mut stdout, &ls_colors, &ln).unwrap();
+                write!(stdout, "\t\t\x1b[33m({})\x1b[0m", percent).unwrap();
+                writeln!(stdout).unwrap();
             } else if let (Some(_), Some(percent)) = (from_map.get(ln), percent_map.get(ln)) {
-                println!("\x1b[32m{}\x1b[0m {}\t\t\x1b[33m({})\x1b[0m", RARROW, ln, percent); // Green for renamed create. yellow for percent
+                // Green for renamed create. yellow for percent
+                write!(stdout, "\x1b[32m{}\x1b[0m ", RARROW).unwrap();
+                print_lscolor_path(&mut stdout, &ls_colors, &ln).unwrap();
+                write!(stdout, "\t\t\x1b[33m({})\x1b[0m", percent).unwrap();
+                writeln!(stdout).unwrap();
             } else {
-                println!("\x1b[34m{}\x1b[0m {}", SQUARE, ln); // Blue for normal
+                // Blue for normal
+                write!(stdout, "\x1b[34m{}\x1b[0m ", SQUARE).unwrap();
+                print_lscolor_path(&mut stdout, &ls_colors, &ln).unwrap();
+                writeln!(stdout).unwrap();
             }
         }
     }
